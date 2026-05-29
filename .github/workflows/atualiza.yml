@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # <--- CRUCIAL: Baixa todo o histórico para o rebase funcionar
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -31,12 +33,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Define globalmente a estratégia de pull como rebase para evitar avisos do Git
+          git config pull.rebase true
+          
           git add index.html
           
           if ! git diff --staged --quiet; then
             git commit -m "chore: atualiza painel $(date +'%d/%m/%Y %H:%M')"
             
-            git pull --rebase origin main
+            # Puxa as alterações mais recentes logo antes de enviar
+            git pull origin main
             
             git push origin main
           else
