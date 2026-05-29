@@ -3,6 +3,7 @@ import urllib3
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+from zoneinfo import ZoneInfo
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -152,7 +153,7 @@ for r in resultado:
 
 total  = len(resultado)
 ativos = sum(1 for r in resultado if r["ativo"])
-agora  = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+agora  = datetime.now(tz=ZoneInfo('America/Manaus')).strftime("%d/%m/%Y %H:%M:%S")
 
 html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
