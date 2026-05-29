@@ -1,25 +1,19 @@
 import requests
 import urllib3
-from dotenv import load_dotenv
 import os
+from datetime import datetime
+from dotenv import load_dotenv
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 load_dotenv()
 
-url = os.getenv("URL_API")
+url     = os.getenv("URL_API")
 api_key = os.getenv("API_KEY_N8N")
 
-headers = {
-    "X-N8N-API-KEY": api_key
-}
+headers = {"X-N8N-API-KEY": api_key}
 
-response = requests.get(
-    f"{url}/api/v1/workflows?limit=200",
-    headers=headers,
-    verify=False
-)
-
+response  = requests.get(f"{url}/api/v1/workflows?limit=200", headers=headers, verify=False)
 workflows = response.json().get("data", [])
 
 SCHEDULE_TYPES = [
@@ -44,31 +38,24 @@ def parse_cron(expr):
 resultado = []
 
 for workflow in workflows:
-    id_       = workflow.get("id", "—")
-    nome      = workflow.get("name", "—")
-    ativo     = workflow.get("active", False)
-    nodes     = workflow.get("nodes", [])
+    id_   = workflow.get("id", "—")
+    nome  = workflow.get("name", "—")
+    ativo = workflow.get("active", False)
+    nodes = workflow.get("nodes", [])
 
     sched_nodes = [n for n in nodes if n.get("type") in SCHEDULE_TYPES]
-
     if not sched_nodes:
         continue
 
     for node in sched_nodes:
         nome_node  = node.get("name", "—")
         desativado = node.get("disabled", False)
-
         intervals  = node.get("parameters", {}).get("rule", {}).get("interval", [])
 
-        cron_parts = []
+        cron_parts, horario_parts = [], []
         for i in intervals:
             expr = i.get("expression") or i.get("cronExpression")
             cron_parts.append(expr if expr else "—")
-        cron_expr = ", ".join(cron_parts) if cron_parts else "—"
-
-        horario_parts = []
-        for i in intervals:
-            expr = i.get("expression") or i.get("cronExpression")
             if expr:
                 horario_parts.append(parse_cron(expr))
             elif i.get("field") == "hours":
@@ -79,17 +66,115 @@ for workflow in workflows:
                 horario_parts.append(f"A cada {i.get('intervalValue', 1)} dia(s)")
             else:
                 horario_parts.append("—")
-        horario = ", ".join(horario_parts) if horario_parts else "—"
 
         resultado.append({
             "id":            id_,
             "nome":          nome,
-            "ativo":         "✅ Sim" if ativo else "❌ Não",
+            "ativo":         True if ativo else False,
             "nodeSchedule":  nome_node,
-            "nodeAtivo":     "❌ Desativado" if desativado else "✅ Ativo",
-            "cronExpressao": cron_expr,
-            "horario":       horario,
+            "nodeAtivo":     False if desativado else True,
+            "cronExpressao": ", ".join(cron_parts) if cron_parts else "—",
+            "horario":       ", ".join(horario_parts) if horario_parts else "—",
         })
 
+def badge(text, style):
+    styles = {
+        "green":  "background:#e6f7f0;color:#0a6640;border:1px solid #b3e0cc",
+        "red":    "background:#fde8eb;color:#9b1c2e;border:1px solid #f5b0bb",
+        "yellow": "background:#fff8e1;color:#7a4f00;border:1px solid #f5d88a",
+    }
+    return (
+        f'<span style="display:inline-flex;align-items:center;gap:4px;'
+        f'font-family:monospace;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;{styles[style]}">'
+        f'<span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span>'
+        f'{text}</span>'
+    )
+
+tr_rows = ""
 for r in resultado:
-    print(r)
+    wf_badge = badge("ATIVO", "green") if r["ativo"] else badge("INATIVO", "red")
+    nd_badge = badge("DESATIVADO", "yellow") if not r["nodeAtivo"] else badge("ATIVO", "green")
+    tr_rows += f"""
+    <tr>
+      <td style="font-family:monospace;font-size:11px;color:#8b92a5">{r['id']}</td>
+      <td style="color:#1a1d23">{r['nome']}</td>
+      <td>{wf_badge}</td>
+      <td style="font-family:monospace;font-size:11px;color:#6b7280">{r['nodeSchedule']}</td>
+      <td>{nd_badge}</td>
+      <td style="font-family:monospace;font-size:11px;color:#4f46e5">{r['cronExpressao']}</td>
+      <td style="color:#374151">{r['horario']}</td>
+    </tr>"""
+
+total   = len(resultado)
+ativos  = sum(1 for r in resultado if r["ativo"])
+agora   = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+html = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule Triggers — n8n</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    background: #f5f6f8;
+    color: #1a1d23;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 13px;
+    padding: 32px;
+  }}
+  h1   {{ font-size: 20px; font-weight: 300; margin-bottom: 4px; color: #1a1d23; }}
+  h1 b {{ font-weight: 600; color: #111318; }}
+  .meta {{ font-family: monospace; font-size: 11px; color: #6b7280; margin-bottom: 24px; }}
+  .stats {{ display: flex; gap: 10px; margin-bottom: 20px; }}
+  .stat  {{ flex: 1; background: #fff; border: 1px solid #e2e5ec; border-radius: 8px; padding: 10px 14px; }}
+  .stat-label {{ font-family: monospace; font-size: 10px; color: #8b92a5; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }}
+  .stat-value {{ font-family: monospace; font-size: 20px; font-weight: 600; }}
+  table  {{ width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e5ec; border-radius: 10px; overflow: hidden; }}
+  thead  {{ background: #f0f2f5; }}
+  th     {{ font-family: monospace; font-size: 10px; font-weight: 600; letter-spacing: .12em; color: #6b7280; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 1px solid #e2e5ec; }}
+  tbody tr {{ border-bottom: 1px solid #eef0f4; }}
+  tbody tr:last-child {{ border-bottom: none; }}
+  tbody tr:hover {{ background: #f7f8fc; }}
+  td {{ padding: 10px 14px; vertical-align: middle; }}
+</style>
+</head>
+<body>
+  <h1><b>Schedule</b> Triggers</h1>
+  <p class="meta">Atualizado em: {agora} · workflow.mavellocadora.com.br</p>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Total</div>
+      <div class="stat-value" style="color:#2563eb">{total}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Ativos</div>
+      <div class="stat-value" style="color:#0a6640">{ativos}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Inativos</div>
+      <div class="stat-value" style="color:#9b1c2e">{total - ativos}</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nome do workflow</th>
+        <th>Status</th>
+        <th>Node schedule</th>
+        <th>Node status</th>
+        <th>Cron</th>
+        <th>Horário</th>
+      </tr>
+    </thead>
+    <tbody>{tr_rows}</tbody>
+  </table>
+</body>
+</html>"""
+
+with open("index.html", "w", encoding="utf-8") as f:
+    f.write(html)
+
+print(f"index.html gerado com {total} workflows.")
