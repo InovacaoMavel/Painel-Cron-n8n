@@ -1,0 +1,36 @@
+name: Atualizar painel
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # a cada 1 hora
+  workflow_dispatch:         # permite rodar manualmente
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Gerar index.html
+        env:
+          URL_API: ${{ secrets.URL_API }}
+          API_KEY_N8N: ${{ secrets.API_KEY_N8N }}
+        run: python coleta_cron.py
+
+      - name: Commit e push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --staged --quiet || git commit -m "chore: atualiza painel $(date +'%d/%m/%Y %H:%M')"
+          git push
