@@ -31,6 +31,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
           git add index.html
           git diff --staged --quiet || git commit -m "chore: atualiza painel $(date +'%d/%m/%Y %H:%M')"
           git push
