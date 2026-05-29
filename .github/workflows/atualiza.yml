@@ -33,12 +33,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add index.html
           
-          # Só faz o commit se houver alterações no index.html
           if ! git diff --staged --quiet; then
             git commit -m "chore: atualiza painel $(date +'%d/%m/%Y %H:%M')"
             
-            # Traz as alterações do remoto e coloca o seu commit no topo, evitando conflitos simples
             git pull --rebase origin main
             
             git push origin main
+          else
+            echo "Nenhuma alteração detectada no index.html"
           fi
