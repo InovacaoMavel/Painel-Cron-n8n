@@ -21,19 +21,64 @@ SCHEDULE_TYPES = [
     "n8n-nodes-base.cron",
 ]
 
-def parse_cron(expr):
-    if not expr:
+def traduzir_cron(expr):
+    if not expr or expr == "—":
         return "—"
+
     parts = expr.strip().split()
     if len(parts) < 5:
         return expr
-    sec, min_, hour, dom, mon = parts[:5]
+
+    minuto, hora, dom, mes, dow = parts[:5]
+
+    dias_semana = {
+        "0": "domingo", "1": "segunda", "2": "terça",
+        "3": "quarta", "4": "quinta", "5": "sexta", "6": "sábado",
+        "7": "domingo", "SUN": "domingo", "MON": "segunda",
+        "TUE": "terça", "WED": "quarta", "THU": "quinta",
+        "FRI": "sexta", "SAT": "sábado"
+    }
+
+    meses_nome = {
+        "1": "janeiro", "2": "fevereiro", "3": "março", "4": "abril",
+        "5": "maio", "6": "junho", "7": "julho", "8": "agosto",
+        "9": "setembro", "10": "outubro", "11": "novembro", "12": "dezembro"
+    }
+
     pad = lambda v: str(v).zfill(2)
-    if dom != "*" and mon == "*":
-        return f"Todo dia {dom} às {pad(hour)}:{pad(min_)}"
-    if dom == "*" and mon == "*":
-        return f"Diário às {pad(hour)}:{pad(min_)}"
+
+    if minuto.startswith("*/") and hora == "*" and dom == "*" and mes == "*" and dow == "*":
+        n = minuto.split("/")[1]
+        return f"A cada {n} minuto(s)"
+
+    if hora.startswith("*/") and minuto == "0" and dom == "*" and mes == "*" and dow == "*":
+        n = hora.split("/")[1]
+        return f"A cada {n} hora(s)"
+
+    if dom == "*" and mes == "*" and dow == "*" and "*" not in minuto and "*" not in hora:
+        if "," in hora:
+            horas = [f"{pad(h)}:{pad(minuto)}" for h in hora.split(",")]
+            return f"Todo dia às {', '.join(horas)}"
+        if "," in minuto:
+            mins = [f"{pad(hora)}:{pad(m)}" for m in minuto.split(",")]
+            return f"Todo dia às {', '.join(mins)}"
+        return f"Todo dia às {pad(hora)}:{pad(minuto)}"
+
+    if dom != "*" and mes == "*" and dow == "*" and "*" not in minuto and "*" not in hora:
+        return f"Todo dia {dom} do mês às {pad(hora)}:{pad(minuto)}"
+
+    if dow != "*" and dom == "*" and mes == "*" and "*" not in minuto and "*" not in hora:
+        dias = [dias_semana.get(d.strip(), d) for d in dow.replace("-", ",").split(",")]
+        if len(dias) == 1:
+            return f"Toda {dias[0]} às {pad(hora)}:{pad(minuto)}"
+        return f"Toda(s) {', '.join(dias)} às {pad(hora)}:{pad(minuto)}"
+
+    if mes != "*" and dom != "*" and dow == "*" and "*" not in minuto and "*" not in hora:
+        nome_mes = meses_nome.get(mes, mes)
+        return f"Todo dia {dom} de {nome_mes} às {pad(hora)}:{pad(minuto)}"
+
     return expr
+
 
 resultado = []
 
@@ -57,7 +102,7 @@ for workflow in workflows:
             expr = i.get("expression") or i.get("cronExpression")
             cron_parts.append(expr if expr else "—")
             if expr:
-                horario_parts.append(parse_cron(expr))
+                horario_parts.append(traduzir_cron(expr))
             elif i.get("field") == "hours":
                 horario_parts.append(f"A cada {i.get('intervalValue', 1)} hora(s)")
             elif i.get("field") == "minutes":
@@ -68,7 +113,7 @@ for workflow in workflows:
                 horario_parts.append("—")
 
         resultado.append({
-            "id":            "https://workflow.mavellocadora.com.br/workflow/"+id_,
+            "id":            "https://workflow.mavellocadora.com.br/workflow/" + id_,
             "nome":          nome,
             "ativo":         True if ativo else False,
             "nodeSchedule":  nome_node,
@@ -105,9 +150,9 @@ for r in resultado:
       <td style="color:#374151">{r['horario']}</td>
     </tr>"""
 
-total   = len(resultado)
-ativos  = sum(1 for r in resultado if r["ativo"])
-agora   = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+total  = len(resultado)
+ativos = sum(1 for r in resultado if r["ativo"])
+agora  = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
 html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -138,6 +183,8 @@ html = f"""<!DOCTYPE html>
   tbody tr:last-child {{ border-bottom: none; }}
   tbody tr:hover {{ background: #f7f8fc; }}
   td {{ padding: 10px 14px; vertical-align: middle; }}
+  a {{ color: #4f46e5; text-decoration: none; }}
+  a:hover {{ text-decoration: underline; }}
 </style>
 <meta http-equiv="refresh" content="3600">
 </head>
