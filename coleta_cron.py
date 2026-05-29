@@ -68,7 +68,7 @@ for workflow in workflows:
                 horario_parts.append("—")
 
         resultado.append({
-            "id":            id_,
+            "id":            "https://workflow.mavellocadora.com.br/workflow/"+id_,
             "nome":          nome,
             "ativo":         True if ativo else False,
             "nodeSchedule":  nome_node,
@@ -139,6 +139,7 @@ html = f"""<!DOCTYPE html>
   tbody tr:hover {{ background: #f7f8fc; }}
   td {{ padding: 10px 14px; vertical-align: middle; }}
 </style>
+<meta http-equiv="refresh" content="3600">
 </head>
 <body>
   <h1><b>Schedule</b> Triggers</h1>
@@ -160,7 +161,7 @@ html = f"""<!DOCTYPE html>
   <table>
     <thead>
       <tr>
-        <th>ID</th>
+        <th>Link</th>
         <th>Nome do workflow</th>
         <th>Status</th>
         <th>Node schedule</th>
