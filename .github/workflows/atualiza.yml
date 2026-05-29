@@ -27,11 +27,18 @@ jobs:
           API_KEY_N8N: ${{ secrets.API_KEY_N8N }}
         run: python coleta_cron.py
 
-      - name: Commit e push
+      - name: Commit and Push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
           git add index.html
-          git diff --staged --quiet || git commit -m "chore: atualiza painel $(date +'%d/%m/%Y %H:%M')"
-          git push
+          
+          # Só faz o commit se houver alterações no index.html
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: atualiza painel $(date +'%d/%m/%Y %H:%M')"
+            
+            # Traz as alterações do remoto e coloca o seu commit no topo, evitando conflitos simples
+            git pull --rebase origin main
+            
+            git push origin main
+          fi
