@@ -96,7 +96,7 @@ for r in resultado:
     nd_badge = badge("DESATIVADO", "yellow") if not r["nodeAtivo"] else badge("ATIVO", "green")
     tr_rows += f"""
     <tr>
-      <td style="font-family:monospace;font-size:11px;color:#8b92a5">{r['id']}</td>
+      <td style="font-family:monospace;font-size:11px;color:#8b92a5"><a href="{r['id']}" target="_blank">Link</a></td>
       <td style="color:#1a1d23">{r['nome']}</td>
       <td>{wf_badge}</td>
       <td style="font-family:monospace;font-size:11px;color:#6b7280">{r['nodeSchedule']}</td>
