@@ -38,6 +38,7 @@ def parse_cron(expr):
 resultado = []
 
 for workflow in workflows:
+    id_   = workflow.get("id", "—")
     nome  = workflow.get("name", "—")
     ativo = workflow.get("active", False)
     nodes = workflow.get("nodes", [])
@@ -67,6 +68,7 @@ for workflow in workflows:
                 horario_parts.append("—")
 
         resultado.append({
+            "id":            id_,
             "nome":          nome,
             "ativo":         True if ativo else False,
             "nodeSchedule":  nome_node,
@@ -94,7 +96,7 @@ for r in resultado:
     nd_badge = badge("DESATIVADO", "yellow") if not r["nodeAtivo"] else badge("ATIVO", "green")
     tr_rows += f"""
     <tr>
-
+      <td style="font-family:monospace;font-size:11px;color:#8b92a5">{r['id']}</td>
       <td style="color:#1a1d23">{r['nome']}</td>
       <td>{wf_badge}</td>
       <td style="font-family:monospace;font-size:11px;color:#6b7280">{r['nodeSchedule']}</td>
@@ -140,7 +142,7 @@ html = f"""<!DOCTYPE html>
 </head>
 <body>
   <h1><b>Schedule</b> Triggers</h1>
-  <p class="meta">Atualizado em: {agora} · workflow.mavellocadora.com.br</p>
+  <p class="meta">Atualizado em: {agora}</p>
   <div class="stats">
     <div class="stat">
       <div class="stat-label">Total</div>
@@ -158,6 +160,7 @@ html = f"""<!DOCTYPE html>
   <table>
     <thead>
       <tr>
+        <th>ID</th>
         <th>Nome do workflow</th>
         <th>Status</th>
         <th>Node schedule</th>
