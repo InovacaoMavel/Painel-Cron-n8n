@@ -27,6 +27,7 @@ jobs:
         env:
           URL_API: ${{ secrets.URL_API }}
           API_KEY_N8N: ${{ secrets.API_KEY_N8N }}
+          GITHUB_REPOSITORY: ${{ github.repository }}  # ex: "seu-usuario/seu-repo"
         run: python coleta_cron.py
 
       - name: Commit and Push changes

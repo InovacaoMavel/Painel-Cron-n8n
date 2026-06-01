@@ -12,6 +12,9 @@ load_dotenv()
 url     = os.getenv("URL_API")
 api_key = os.getenv("API_KEY_N8N")
 
+GITHUB_USER = os.getenv("GITHUB_USER", "seu-usuario")  # defina no .env ou secrets
+GITHUB_REPO = os.getenv("GITHUB_REPO", "seu-repo")     # defina no .env ou secrets
+
 headers = {"X-N8N-API-KEY": api_key}
 
 response  = requests.get(f"{url}/api/v1/workflows?limit=200", headers=headers, verify=False)
@@ -186,8 +189,19 @@ html = f"""<!DOCTYPE html>
   td {{ padding: 10px 14px; vertical-align: middle; }}
   a {{ color: #4f46e5; text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
+  #update-indicator {{
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    font-family: monospace;
+    font-size: 10px;
+    color: #8b92a5;
+    background: #fff;
+    border: 1px solid #e2e5ec;
+    border-radius: 6px;
+    padding: 4px 10px;
+  }}
 </style>
-<meta http-equiv="refresh" content="3600">
 </head>
 <body>
   <h1><b>Schedule</b> Triggers</h1>
@@ -220,6 +234,50 @@ html = f"""<!DOCTYPE html>
     </thead>
     <tbody>{tr_rows}</tbody>
   </table>
+
+  <div id="update-indicator">⟳ verificando atualizações...</div>
+
+  <script>
+    const GITHUB_USER = '{GITHUB_USER}';
+    const GITHUB_REPO = '{GITHUB_REPO}';
+    const BRANCH = 'main';
+    const POLL_INTERVAL = 90000; // 90 segundos
+
+    const indicator = document.getElementById('update-indicator');
+    let lastKnownSha = null;
+
+    async function checkForUpdates() {{
+      try {{
+        const res = await fetch(
+          `https://api.github.com/repos/${{GITHUB_USER}}/${{GITHUB_REPO}}/commits/${{BRANCH}}`,
+          {{ headers: {{ 'Accept': 'application/vnd.github.v3+json' }} }}
+        );
+        if (!res.ok) {{
+          indicator.textContent = '⚠ erro ao verificar';
+          return;
+        }}
+        const sha = (await res.json()).sha;
+        const shortSha = sha.substring(0, 7);
+
+        if (lastKnownSha === null) {{
+          lastKnownSha = sha;
+          indicator.textContent = `✓ ${{shortSha}} — sincronizado`;
+          return;
+        }}
+
+        if (sha !== lastKnownSha) {{
+          indicator.textContent = '↻ nova versão detectada, recarregando...';
+          setTimeout(() => window.location.reload(), 1000);
+        }}
+      }} catch (e) {{
+        indicator.textContent = '⚠ sem conexão';
+        console.warn('Erro ao verificar atualização:', e);
+      }}
+    }}
+
+    setInterval(checkForUpdates, POLL_INTERVAL);
+    checkForUpdates();
+  </script>
 </body>
 </html>"""
 
