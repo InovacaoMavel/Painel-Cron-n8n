@@ -13,7 +13,7 @@ url     = os.getenv("URL_API")
 api_key = os.getenv("API_KEY_N8N")
 
 # Formato: "usuario/repo" — preenchido automaticamente pelo GitHub Actions
-_gh_repo     = os.getenv("GITHUB_REPOSITORY", "seu-usuario/seu-repo")
+_gh_repo     = os.getenv("GITHUB_REPOSITORY", "USER/REPO")
 GITHUB_USER, GITHUB_REPO = _gh_repo.split("/", 1)
 
 headers = {"X-N8N-API-KEY": api_key}
@@ -259,7 +259,7 @@ html = f"""<!DOCTYPE html>
         );
 
         if (!res.ok) {{
-          indicator.textContent = '⚠ erro ao verificar';
+          indicator.textContent = 'sem conexão';
           return;
         }}
 
@@ -278,7 +278,7 @@ html = f"""<!DOCTYPE html>
 
           // Conta regressiva enquanto o Pages termina o deploy
           const countdown = setInterval(() => {{
-            indicator.textContent = `⟳ novo commit detectado, recarregando em ${{remaining}}s...`;
+            indicator.textContent = `novo commit detectado, recarregando em ${{remaining}}s...`;
             remaining--;
             if (remaining < 0) clearInterval(countdown);
           }}, 1000);
@@ -286,7 +286,7 @@ html = f"""<!DOCTYPE html>
           setTimeout(() => window.location.reload(), DEPLOY_DELAY);
         }}
       }} catch (e) {{
-        indicator.textContent = '⚠ sem conexão';
+        indicator.textContent = 'sem conexão';
         console.warn('Erro ao verificar atualização:', e);
       }}
     }}
