@@ -241,16 +241,20 @@ html = f"""<!DOCTYPE html>
   <script>
     const GITHUB_USER = '{GITHUB_USER}';
     const GITHUB_REPO = '{GITHUB_REPO}';
-    const POLL_INTERVAL = 90000; // 90 segundos
+    const BRANCH = 'main';
+    const POLL_INTERVAL = 90000;  // verifica a cada 90s
+    const DEPLOY_DELAY  = 120000; // aguarda 2min após detectar commit (Pages precisa de ~1-2min)
 
     const indicator = document.getElementById('update-indicator');
-    let lastKnownDeployId = null;
+    let lastKnownSha  = null;
+    let reloadPending = false;
 
     async function checkForUpdates() {{
+      if (reloadPending) return; // já agendou reload, não interfere
+
       try {{
-        // Verifica o último deploy concluído do GitHub Pages
         const res = await fetch(
-          `https://api.github.com/repos/${{GITHUB_USER}}/${{GITHUB_REPO}}/pages/deployments?limit=1`,
+          `https://api.github.com/repos/${{GITHUB_USER}}/${{GITHUB_REPO}}/commits/${{BRANCH}}?t=${{Date.now()}}`,
           {{ headers: {{ 'Accept': 'application/vnd.github.v3+json' }} }}
         );
 
@@ -259,29 +263,27 @@ html = f"""<!DOCTYPE html>
           return;
         }}
 
-        const deployments = await res.json();
-        if (!deployments.length) return;
+        const sha      = (await res.json()).sha;
+        const shortSha = sha.substring(0, 7);
 
-        const latest = deployments[0];
-
-        // Só considera deploys que já concluíram com sucesso
-        if (latest.status !== 'succeed') {{
-          indicator.textContent = `⟳ deploy em andamento...`;
+        if (lastKnownSha === null) {{
+          lastKnownSha = sha;
+          indicator.textContent = `✓ ${{shortSha}} — sincronizado`;
           return;
         }}
 
-        const deployId = latest.id;
-        const shortId  = String(deployId).slice(-6);
+        if (sha !== lastKnownSha) {{
+          reloadPending = true;
+          let remaining = DEPLOY_DELAY / 1000;
 
-        if (lastKnownDeployId === null) {{
-          lastKnownDeployId = deployId;
-          indicator.textContent = `✓ deploy ${{shortId}} — sincronizado`;
-          return;
-        }}
+          // Conta regressiva enquanto o Pages termina o deploy
+          const countdown = setInterval(() => {{
+            indicator.textContent = `⟳ novo commit detectado, recarregando em ${{remaining}}s...`;
+            remaining--;
+            if (remaining < 0) clearInterval(countdown);
+          }}, 1000);
 
-        if (deployId !== lastKnownDeployId) {{
-          indicator.textContent = '↻ novo deploy detectado, recarregando...';
-          setTimeout(() => window.location.reload(), 1000);
+          setTimeout(() => window.location.reload(), DEPLOY_DELAY);
         }}
       }} catch (e) {{
         indicator.textContent = '⚠ sem conexão';
