@@ -12,8 +12,8 @@ load_dotenv()
 url     = os.getenv("URL_API")
 api_key = os.getenv("API_KEY_N8N")
 
-GITHUB_USER = os.getenv("GITHUB_USER", "seu-usuario")  # defina no .env ou secrets
-GITHUB_REPO = os.getenv("GITHUB_REPO", "seu-repo")     # defina no .env ou secrets
+GITHUB_USER = os.getenv("USER")  # defina no .env ou secrets
+GITHUB_REPO = os.getenv("REPO")     # defina no .env ou secrets
 
 headers = {"X-N8N-API-KEY": api_key}
 
