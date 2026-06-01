@@ -45,7 +45,7 @@
 </head>
 <body>
   <h1><b>Schedule</b> Triggers</h1>
-  <p class="meta">Atualizado em: 01/06/2026 10:56:51</p>
+  <p class="meta">Atualizado em: 01/06/2026 11:13:53</p>
   <div class="stats">
     <div class="stat">
       <div class="stat-label">Total</div>
@@ -573,35 +573,48 @@
   <div id="update-indicator">⟳ verificando atualizações...</div>
 
   <script>
-    const GITHUB_USER = 'runner';
-    const GITHUB_REPO = 'None';
-    const BRANCH = 'main';
+    const GITHUB_USER = 'InovacaoMavel';
+    const GITHUB_REPO = 'Painel-Cron-n8n';
     const POLL_INTERVAL = 90000; // 90 segundos
 
     const indicator = document.getElementById('update-indicator');
-    let lastKnownSha = null;
+    let lastKnownDeployId = null;
 
     async function checkForUpdates() {
       try {
+        // Verifica o último deploy concluído do GitHub Pages
         const res = await fetch(
-          `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/commits/${BRANCH}`,
+          `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/pages/deployments?limit=1`,
           { headers: { 'Accept': 'application/vnd.github.v3+json' } }
         );
+
         if (!res.ok) {
           indicator.textContent = '⚠ erro ao verificar';
           return;
         }
-        const sha = (await res.json()).sha;
-        const shortSha = sha.substring(0, 7);
 
-        if (lastKnownSha === null) {
-          lastKnownSha = sha;
-          indicator.textContent = `✓ ${shortSha} — sincronizado`;
+        const deployments = await res.json();
+        if (!deployments.length) return;
+
+        const latest = deployments[0];
+
+        // Só considera deploys que já concluíram com sucesso
+        if (latest.status !== 'succeed') {
+          indicator.textContent = `⟳ deploy em andamento...`;
           return;
         }
 
-        if (sha !== lastKnownSha) {
-          indicator.textContent = '↻ nova versão detectada, recarregando...';
+        const deployId = latest.id;
+        const shortId  = String(deployId).slice(-6);
+
+        if (lastKnownDeployId === null) {
+          lastKnownDeployId = deployId;
+          indicator.textContent = `✓ deploy ${shortId} — sincronizado`;
+          return;
+        }
+
+        if (deployId !== lastKnownDeployId) {
+          indicator.textContent = '↻ novo deploy detectado, recarregando...';
           setTimeout(() => window.location.reload(), 1000);
         }
       } catch (e) {
