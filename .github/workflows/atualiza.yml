@@ -2,8 +2,8 @@ name: Atualizar painel
 
 on:
   schedule:
-    - cron: "0 * * * *"  # a cada 1 hora
-  workflow_dispatch:         # permite rodar manualmente
+    - cron: "*/15 * * * *"  # a cada 15 minutos
+  workflow_dispatch:
 
 jobs:
   gerar:
