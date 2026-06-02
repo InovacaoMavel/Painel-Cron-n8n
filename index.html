@@ -45,7 +45,7 @@
 </head>
 <body>
   <h1><b>Schedule</b> Triggers</h1>
-  <p class="meta">Atualizado em: 02/06/2026 04:58:14</p>
+  <p class="meta">Atualizado em: 02/06/2026 09:28:24</p>
   <div class="stats">
     <div class="stat">
       <div class="stat-label">Total</div>
@@ -133,8 +133,8 @@
       <td><span style="display:inline-flex;align-items:center;gap:4px;font-family:monospace;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;background:#e6f7f0;color:#0a6640;border:1px solid #b3e0cc"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span>ATIVO</span></td>
       <td style="font-family:monospace;font-size:11px;color:#6b7280">Todo dia 08h00 (Manaus)</td>
       <td><span style="display:inline-flex;align-items:center;gap:4px;font-family:monospace;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;background:#e6f7f0;color:#0a6640;border:1px solid #b3e0cc"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span>ATIVO</span></td>
-      <td style="font-family:monospace;font-size:11px;color:#4f46e5">0 8 * * *</td>
-      <td style="color:#374151">Todo dia às 08:00</td>
+      <td style="font-family:monospace;font-size:11px;color:#4f46e5">0 9 * * *</td>
+      <td style="color:#374151">Todo dia às 09:00</td>
     </tr>
     <tr>
       <td style="font-family:monospace;font-size:11px;color:#8b92a5"><a href="https://workflow.mavellocadora.com.br/workflow/ZC3gtO2KtmxIIPsf" target="_blank">Link</a></td>
@@ -585,15 +585,15 @@
     const GITHUB_USER = 'InovacaoMavel';
     const GITHUB_REPO = 'Painel-Cron-n8n';
     const BRANCH = 'main';
-    const POLL_INTERVAL = 90000;  // verifica a cada 90s
-    const DEPLOY_DELAY  = 120000; // aguarda 2min após detectar commit (Pages precisa de ~1-2min)
+    const POLL_INTERVAL = 90000;
+    const DEPLOY_DELAY  = 120000;
 
     const indicator = document.getElementById('update-indicator');
     let lastKnownSha  = null;
     let reloadPending = false;
 
     async function checkForUpdates() {
-      if (reloadPending) return; // já agendou reload, não interfere
+      if (reloadPending) return;
 
       try {
         const res = await fetch(
@@ -619,7 +619,6 @@
           reloadPending = true;
           let remaining = DEPLOY_DELAY / 1000;
 
-          // Conta regressiva enquanto o Pages termina o deploy
           const countdown = setInterval(() => {
             indicator.textContent = `novo commit detectado, recarregando em ${remaining}s...`;
             remaining--;
