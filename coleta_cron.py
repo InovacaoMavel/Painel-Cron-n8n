@@ -12,20 +12,41 @@ load_dotenv()
 url     = os.getenv("URL_API")
 api_key = os.getenv("API_KEY_N8N")
 
-# Formato: "usuario/repo" — preenchido automaticamente pelo GitHub Actions
 _gh_repo     = os.getenv("GITHUB_REPOSITORY", "USER/REPO")
 GITHUB_USER, GITHUB_REPO = _gh_repo.split("/", 1)
 
 headers = {"X-N8N-API-KEY": api_key}
 
-response  = requests.get(f"{url}/api/v1/workflows?limit=200", headers=headers, verify=False)
-workflows = response.json().get("data", [])
+# ── Coleta com timeout e tratamento de erro ──────────────────────────────────
+try:
+    response = requests.get(
+        f"{url}/api/v1/workflows?limit=200",
+        headers=headers,
+        verify=False,
+        timeout=30,
+    )
+    response.raise_for_status()
+    workflows = response.json().get("data", [])
+except requests.exceptions.ConnectTimeout:
+    print("Erro: timeout ao conectar no n8n. Servidor inacessível.")
+    exit(0)
+except requests.exceptions.ConnectionError as e:
+    print(f"Erro de conexão: {e}")
+    exit(0)
+except requests.exceptions.HTTPError as e:
+    print(f"Erro HTTP: {e}")
+    exit(0)
+except requests.exceptions.RequestException as e:
+    print(f"Erro ao acessar a API: {e}")
+    exit(0)
 
+# ── Tipos de nó de agendamento ───────────────────────────────────────────────
 SCHEDULE_TYPES = [
     "n8n-nodes-base.scheduleTrigger",
     "n8n-nodes-base.cron",
 ]
 
+# ── Tradução de expressão cron ───────────────────────────────────────────────
 def traduzir_cron(expr):
     if not expr or expr == "—":
         return "—"
@@ -38,16 +59,16 @@ def traduzir_cron(expr):
 
     dias_semana = {
         "0": "domingo", "1": "segunda", "2": "terça",
-        "3": "quarta", "4": "quinta", "5": "sexta", "6": "sábado",
-        "7": "domingo", "SUN": "domingo", "MON": "segunda",
-        "TUE": "terça", "WED": "quarta", "THU": "quinta",
-        "FRI": "sexta", "SAT": "sábado"
+        "3": "quarta",  "4": "quinta",  "5": "sexta", "6": "sábado",
+        "7": "domingo",
+        "SUN": "domingo", "MON": "segunda", "TUE": "terça",
+        "WED": "quarta",  "THU": "quinta",  "FRI": "sexta", "SAT": "sábado",
     }
 
     meses_nome = {
-        "1": "janeiro", "2": "fevereiro", "3": "março", "4": "abril",
-        "5": "maio", "6": "junho", "7": "julho", "8": "agosto",
-        "9": "setembro", "10": "outubro", "11": "novembro", "12": "dezembro"
+        "1": "janeiro",  "2": "fevereiro", "3":  "março",    "4":  "abril",
+        "5": "maio",     "6": "junho",     "7":  "julho",    "8":  "agosto",
+        "9": "setembro", "10": "outubro",  "11": "novembro", "12": "dezembro",
     }
 
     pad = lambda v: str(v).zfill(2)
@@ -85,6 +106,7 @@ def traduzir_cron(expr):
     return expr
 
 
+# ── Processa workflows ───────────────────────────────────────────────────────
 resultado = []
 
 for workflow in workflows:
@@ -123,10 +145,11 @@ for workflow in workflows:
             "ativo":         True if ativo else False,
             "nodeSchedule":  nome_node,
             "nodeAtivo":     False if desativado else True,
-            "cronExpressao": ", ".join(cron_parts) if cron_parts else "—",
+            "cronExpressao": ", ".join(cron_parts)   if cron_parts   else "—",
             "horario":       ", ".join(horario_parts) if horario_parts else "—",
         })
 
+# ── Helpers de badge ─────────────────────────────────────────────────────────
 def badge(text, style):
     styles = {
         "green":  "background:#e6f7f0;color:#0a6640;border:1px solid #b3e0cc",
@@ -140,6 +163,7 @@ def badge(text, style):
         f'{text}</span>'
     )
 
+# ── Monta linhas da tabela ───────────────────────────────────────────────────
 tr_rows = ""
 for r in resultado:
     wf_badge = badge("ATIVO", "green") if r["ativo"] else badge("INATIVO", "red")
@@ -157,8 +181,9 @@ for r in resultado:
 
 total  = len(resultado)
 ativos = sum(1 for r in resultado if r["ativo"])
-agora  = datetime.now(tz=ZoneInfo('America/Manaus')).strftime("%d/%m/%Y %H:%M:%S")
+agora  = datetime.now(tz=ZoneInfo("America/Manaus")).strftime("%d/%m/%Y %H:%M:%S")
 
+# ── HTML final ───────────────────────────────────────────────────────────────
 html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -242,15 +267,15 @@ html = f"""<!DOCTYPE html>
     const GITHUB_USER = '{GITHUB_USER}';
     const GITHUB_REPO = '{GITHUB_REPO}';
     const BRANCH = 'main';
-    const POLL_INTERVAL = 90000;  // verifica a cada 90s
-    const DEPLOY_DELAY  = 120000; // aguarda 2min após detectar commit (Pages precisa de ~1-2min)
+    const POLL_INTERVAL = 90000;
+    const DEPLOY_DELAY  = 120000;
 
     const indicator = document.getElementById('update-indicator');
     let lastKnownSha  = null;
     let reloadPending = false;
 
     async function checkForUpdates() {{
-      if (reloadPending) return; // já agendou reload, não interfere
+      if (reloadPending) return;
 
       try {{
         const res = await fetch(
@@ -276,7 +301,6 @@ html = f"""<!DOCTYPE html>
           reloadPending = true;
           let remaining = DEPLOY_DELAY / 1000;
 
-          // Conta regressiva enquanto o Pages termina o deploy
           const countdown = setInterval(() => {{
             indicator.textContent = `novo commit detectado, recarregando em ${{remaining}}s...`;
             remaining--;
