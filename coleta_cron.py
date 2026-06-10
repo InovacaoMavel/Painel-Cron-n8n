@@ -173,8 +173,28 @@ for workflow in workflows:
                 horario_parts.append(f"A cada {i.get('intervalValue', 1)} hora(s)")
             elif i.get("field") == "minutes":
                 horario_parts.append(f"A cada {i.get('intervalValue', 1)} minuto(s)")
+            elif i.get("field") == "seconds":
+                horario_parts.append(f"A cada {i.get('intervalValue', 1)} segundo(s)")
             elif i.get("field") == "days":
-                horario_parts.append(f"A cada {i.get('intervalValue', 1)} dia(s)")
+                h = str(i.get("triggerAtHour", 0)).zfill(2)
+                m = str(i.get("triggerAtMinute", 0)).zfill(2)
+                n = i.get("intervalValue", 1)
+                horario_parts.append(f"A cada {n} dia(s) às {h}:{m}")
+            elif i.get("field") == "weeks":
+                dias_semana = {0:"domingo",1:"segunda",2:"terça",3:"quarta",4:"quinta",5:"sexta",6:"sábado"}
+                h = str(i.get("triggerAtHour", 0)).zfill(2)
+                m = str(i.get("triggerAtMinute", 0)).zfill(2)
+                dia = dias_semana.get(i.get("triggerAtDay", 1), str(i.get("triggerAtDay", "")))
+                horario_parts.append(f"Toda {dia} às {h}:{m}")
+            elif i.get("field") == "months":
+                h = str(i.get("triggerAtHour", 0)).zfill(2)
+                m = str(i.get("triggerAtMinute", 0)).zfill(2)
+                d = i.get("triggerAtDayOfMonth", i.get("triggerAtDay", 1))
+                horario_parts.append(f"Todo dia {d} do mês às {h}:{m}")
+            elif "triggerAtHour" in i:
+                h = str(i.get("triggerAtHour", 0)).zfill(2)
+                m = str(i.get("triggerAtMinute", 0)).zfill(2)
+                horario_parts.append(f"Todo dia às {h}:{m}")
             else:
                 horario_parts.append("—")
 
