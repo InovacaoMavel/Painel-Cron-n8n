@@ -129,7 +129,7 @@ for workflow in workflows:
 
         cron_parts, horario_parts = [], []
         for i in intervals:
-            expr = i.get("expression") or i.get("cronExpression")
+            expr = (i.get("expression") or i.get("cronExpression") or "").lstrip("=").strip() or None
             cron_parts.append(expr if expr else "—")
             if expr:
                 horario_parts.append(traduzir_cron(expr))
