@@ -52,6 +52,9 @@ def traduzir_cron(expr):
         return "—"
 
     parts = expr.strip().split()
+    if len(parts) == 6:
+        # formato com segundos: seg min hora dom mes dow → descarta o campo de segundos
+        parts = parts[1:]
     if len(parts) < 5:
         return expr
 
