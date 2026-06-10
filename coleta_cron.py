@@ -1,3 +1,4 @@
+import re
 import requests
 import urllib3
 import os
@@ -163,42 +164,60 @@ for workflow in workflows:
         desativado = node.get("disabled", False)
         intervals  = node.get("parameters", {}).get("rule", {}).get("interval", [])
 
+        def n8n_int(val, default=0):
+            """Extrai inteiro de valores literais ou expressões n8n como '={{ 8 }}'."""
+            if isinstance(val, int):
+                return val
+            if val is None:
+                return default
+            m = re.search(r"\{\{[^}]*?(\d+)[^}]*?\}\}", str(val))
+            if m:
+                return int(m.group(1))
+            try:
+                return int(str(val).lstrip("=").strip())
+            except ValueError:
+                return default
+
         cron_parts, horario_parts = [], []
         for i in intervals:
             expr = (i.get("expression") or i.get("cronExpression") or "").lstrip("=").strip() or None
             cron_parts.append(expr if expr else "—")
+            field = str(i.get("field", "")).lstrip("=").strip()
             if expr:
                 horario_parts.append(traduzir_cron(expr))
-            elif i.get("field") == "hours":
-                horario_parts.append(f"A cada {i.get('intervalValue', 1)} hora(s)")
-            elif i.get("field") == "minutes":
-                horario_parts.append(f"A cada {i.get('intervalValue', 1)} minuto(s)")
-            elif i.get("field") == "seconds":
-                horario_parts.append(f"A cada {i.get('intervalValue', 1)} segundo(s)")
-            elif i.get("field") == "days":
-                h = str(i.get("triggerAtHour", 0)).zfill(2)
-                m = str(i.get("triggerAtMinute", 0)).zfill(2)
-                n = i.get("intervalValue", 1)
+            elif field == "hours":
+                n = n8n_int(i.get("hoursInterval", i.get("intervalValue", 1)), 1)
+                horario_parts.append(f"A cada {n} hora(s)")
+            elif field == "minutes":
+                n = n8n_int(i.get("minutesInterval", i.get("intervalValue", 1)), 1)
+                horario_parts.append(f"A cada {n} minuto(s)")
+            elif field == "seconds":
+                n = n8n_int(i.get("secondsInterval", i.get("intervalValue", 1)), 1)
+                horario_parts.append(f"A cada {n} segundo(s)")
+            elif field == "days":
+                h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
+                m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
+                n = n8n_int(i.get("daysInterval", i.get("intervalValue", 1)), 1)
                 horario_parts.append(f"A cada {n} dia(s) às {h}:{m}")
-            elif i.get("field") == "weeks":
+            elif field == "weeks":
                 dias_semana = {0:"domingo",1:"segunda",2:"terça",3:"quarta",4:"quinta",5:"sexta",6:"sábado"}
-                h = str(i.get("triggerAtHour", 0)).zfill(2)
-                m = str(i.get("triggerAtMinute", 0)).zfill(2)
+                h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
+                m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
                 raw_day = i.get("triggerAtDay", 1)
                 if isinstance(raw_day, list):
-                    nomes = [dias_semana.get(d, str(d)) for d in raw_day]
+                    nomes = [dias_semana.get(n8n_int(d), str(d)) for d in raw_day]
                     dia = ", ".join(nomes)
                 else:
-                    dia = dias_semana.get(raw_day, str(raw_day))
+                    dia = dias_semana.get(n8n_int(raw_day), str(raw_day))
                 horario_parts.append(f"Toda(s) {dia} às {h}:{m}")
-            elif i.get("field") == "months":
-                h = str(i.get("triggerAtHour", 0)).zfill(2)
-                m = str(i.get("triggerAtMinute", 0)).zfill(2)
-                d = i.get("triggerAtDayOfMonth", i.get("triggerAtDay", 1))
+            elif field == "months":
+                h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
+                m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
+                d = n8n_int(i.get("triggerAtDayOfMonth", i.get("triggerAtDay", 1)), 1)
                 horario_parts.append(f"Todo dia {d} do mês às {h}:{m}")
             elif "triggerAtHour" in i:
-                h = str(i.get("triggerAtHour", 0)).zfill(2)
-                m = str(i.get("triggerAtMinute", 0)).zfill(2)
+                h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
+                m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
                 horario_parts.append(f"Todo dia às {h}:{m}")
             elif not i:
                 horario_parts.append("A cada 1 minuto(s) (padrão)")
