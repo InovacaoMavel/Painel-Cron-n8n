@@ -162,67 +162,113 @@ for workflow in workflows:
     for node in sched_nodes:
         nome_node  = node.get("name", "—")
         desativado = node.get("disabled", False)
-        intervals  = node.get("parameters", {}).get("rule", {}).get("interval", [])
-
-        def n8n_int(val, default=0):
-            """Extrai inteiro de valores literais ou expressões n8n como '={{ 8 }}'."""
-            if isinstance(val, int):
-                return val
-            if val is None:
-                return default
-            m = re.search(r"\{\{[^}]*?(\d+)[^}]*?\}\}", str(val))
-            if m:
-                return int(m.group(1))
-            try:
-                return int(str(val).lstrip("=").strip())
-            except ValueError:
-                return default
+        params     = node.get("parameters", {})
+        node_type  = node.get("type", "")
 
         cron_parts, horario_parts = [], []
-        for i in intervals:
-            expr = (i.get("expression") or i.get("cronExpression") or "").lstrip("=").strip() or None
-            cron_parts.append(expr if expr else "—")
-            field = str(i.get("field", "")).lstrip("=").strip()
-            if expr:
-                horario_parts.append(traduzir_cron(expr))
-            elif field == "hours":
-                n = n8n_int(i.get("hoursInterval", i.get("intervalValue", 1)), 1)
-                horario_parts.append(f"A cada {n} hora(s)")
-            elif field == "minutes":
-                n = n8n_int(i.get("minutesInterval", i.get("intervalValue", 1)), 1)
-                horario_parts.append(f"A cada {n} minuto(s)")
-            elif field == "seconds":
-                n = n8n_int(i.get("secondsInterval", i.get("intervalValue", 1)), 1)
-                horario_parts.append(f"A cada {n} segundo(s)")
-            elif field == "days":
-                h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
-                m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
-                n = n8n_int(i.get("daysInterval", i.get("intervalValue", 1)), 1)
-                horario_parts.append(f"A cada {n} dia(s) às {h}:{m}")
-            elif field == "weeks":
-                dias_semana = {0:"domingo",1:"segunda",2:"terça",3:"quarta",4:"quinta",5:"sexta",6:"sábado"}
-                h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
-                m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
-                raw_day = i.get("triggerAtDay", 1)
-                if isinstance(raw_day, list):
-                    nomes = [dias_semana.get(n8n_int(d), str(d)) for d in raw_day]
-                    dia = ", ".join(nomes)
+
+        # ── Nó legado: n8n-nodes-base.cron ───────────────────────────────────
+        if node_type == "n8n-nodes-base.cron":
+            _DIAS = {0:"domingo",1:"segunda",2:"terça",3:"quarta",4:"quinta",5:"sexta",6:"sábado"}
+            _UNITS = {"minutes":"minuto(s)","hours":"hora(s)","seconds":"segundo(s)"}
+            for item in params.get("triggerTimes", {}).get("item", []):
+                mode = item.get("mode", "")
+                if mode == "custom":
+                    expr = item.get("cronExpression", "").strip()
+                    cron_parts.append(expr or "—")
+                    horario_parts.append(traduzir_cron(expr) if expr else "—")
+                elif mode == "everyMinute":
+                    cron_parts.append("—")
+                    horario_parts.append("A cada 1 minuto(s)")
+                elif mode == "everyHour":
+                    cron_parts.append("—")
+                    horario_parts.append(f"A cada hora (minuto {str(item.get('minute', 0)).zfill(2)})")
+                elif mode == "everyDay":
+                    h = str(item.get("hour", 0)).zfill(2)
+                    m = str(item.get("minute", 0)).zfill(2)
+                    cron_parts.append("—")
+                    horario_parts.append(f"Todo dia às {h}:{m}")
+                elif mode == "everyWeek":
+                    h = str(item.get("hour", 0)).zfill(2)
+                    m = str(item.get("minute", 0)).zfill(2)
+                    dia = _DIAS.get(item.get("weekday", 0), str(item.get("weekday", "")))
+                    cron_parts.append("—")
+                    horario_parts.append(f"Toda {dia} às {h}:{m}")
+                elif mode == "everyMonth":
+                    h = str(item.get("hour", 0)).zfill(2)
+                    m = str(item.get("minute", 0)).zfill(2)
+                    d = item.get("dayOfMonth", 1)
+                    cron_parts.append("—")
+                    horario_parts.append(f"Todo dia {d} do mês às {h}:{m}")
+                elif mode == "everyX":
+                    val  = item.get("value", 1)
+                    unit = _UNITS.get(item.get("unit", "minutes"), item.get("unit", ""))
+                    cron_parts.append("—")
+                    horario_parts.append(f"A cada {val} {unit}")
                 else:
-                    dia = dias_semana.get(n8n_int(raw_day), str(raw_day))
-                horario_parts.append(f"Toda(s) {dia} às {h}:{m}")
-            elif field == "months":
-                h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
-                m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
-                d = n8n_int(i.get("triggerAtDayOfMonth", i.get("triggerAtDay", 1)), 1)
-                horario_parts.append(f"Todo dia {d} do mês às {h}:{m}")
-            elif "triggerAtHour" in i:
-                h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
-                m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
-                horario_parts.append(f"Todo dia às {h}:{m}")
-            elif not i:
-                horario_parts.append("A cada 1 minuto(s) (padrão)")
-            else:
-                horario_parts.append("—")
+                    cron_parts.append("—")
+                    horario_parts.append("—")
+
+        # ── Nó atual: n8n-nodes-base.scheduleTrigger ─────────────────────────
+        else:
+            def n8n_int(val, default=0):
+                if isinstance(val, int):
+                    return val
+                if val is None:
+                    return default
+                mt = re.search(r"\{\{[^}]*?(\d+)[^}]*?\}\}", str(val))
+                if mt:
+                    return int(mt.group(1))
+                try:
+                    return int(str(val).lstrip("=").strip())
+                except ValueError:
+                    return default
+
+            intervals = params.get("rule", {}).get("interval", [])
+            for i in intervals:
+                expr = (i.get("expression") or i.get("cronExpression") or "").lstrip("=").strip() or None
+                cron_parts.append(expr if expr else "—")
+                field = str(i.get("field", "")).lstrip("=").strip()
+                if expr:
+                    horario_parts.append(traduzir_cron(expr))
+                elif field == "hours":
+                    n = n8n_int(i.get("hoursInterval", i.get("intervalValue", 1)), 1)
+                    horario_parts.append(f"A cada {n} hora(s)")
+                elif field == "minutes":
+                    n = n8n_int(i.get("minutesInterval", i.get("intervalValue", 1)), 1)
+                    horario_parts.append(f"A cada {n} minuto(s)")
+                elif field == "seconds":
+                    n = n8n_int(i.get("secondsInterval", i.get("intervalValue", 1)), 1)
+                    horario_parts.append(f"A cada {n} segundo(s)")
+                elif field == "days":
+                    h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
+                    m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
+                    n = n8n_int(i.get("daysInterval", i.get("intervalValue", 1)), 1)
+                    horario_parts.append(f"A cada {n} dia(s) às {h}:{m}")
+                elif field == "weeks":
+                    _DIAS = {0:"domingo",1:"segunda",2:"terça",3:"quarta",4:"quinta",5:"sexta",6:"sábado"}
+                    h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
+                    m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
+                    raw_day = i.get("triggerAtDay", 1)
+                    if isinstance(raw_day, list):
+                        nomes = [_DIAS.get(n8n_int(d), str(d)) for d in raw_day]
+                        dia = ", ".join(nomes)
+                    else:
+                        dia = _DIAS.get(n8n_int(raw_day), str(raw_day))
+                    horario_parts.append(f"Toda(s) {dia} às {h}:{m}")
+                elif field == "months":
+                    h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
+                    m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
+                    d = n8n_int(i.get("triggerAtDayOfMonth", i.get("triggerAtDay", 1)), 1)
+                    horario_parts.append(f"Todo dia {d} do mês às {h}:{m}")
+                elif "triggerAtHour" in i:
+                    h = str(n8n_int(i.get("triggerAtHour", 0))).zfill(2)
+                    m = str(n8n_int(i.get("triggerAtMinute", 0))).zfill(2)
+                    horario_parts.append(f"Todo dia às {h}:{m}")
+                elif not i:
+                    horario_parts.append("A cada 1 minuto(s) (padrão)")
+                else:
+                    horario_parts.append("—")
 
         # Usa a URL base do .env para o link, ou fallback
         base_url = os.getenv("N8N_URL", url).rstrip("/")
