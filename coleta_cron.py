@@ -257,8 +257,10 @@ tr_rows = ""
 for r in resultado:
     wf_badge = badge("ATIVO", "green") if r["ativo"] else badge("INATIVO", "red")
     nd_badge = badge("DESATIVADO", "yellow") if not r["nodeAtivo"] else badge("ATIVO", "green")
+    wf_status  = "ativo"     if r["ativo"]     else "inativo"
+    nd_status  = "ativo"     if r["nodeAtivo"] else "desativado"
     tr_rows += f"""
-    <tr>
+    <tr data-wf="{wf_status}" data-nd="{nd_status}">
       <td style="font-family:monospace;font-size:11px;color:#8b92a5"><a href="{r['id']}" target="_blank">Link</a></td>
       <td style="color:#1a1d23">{r['nome']}</td>
       <td>{wf_badge}</td>
@@ -304,6 +306,16 @@ html = f"""<!DOCTYPE html>
   td {{ padding: 10px 14px; vertical-align: middle; }}
   a {{ color: #4f46e5; text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
+  .filters {{ display: flex; gap: 24px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }}
+  .filter-group {{ display: flex; align-items: center; gap: 6px; }}
+  .filter-label {{ font-family: monospace; font-size: 10px; color: #8b92a5; letter-spacing: .1em; text-transform: uppercase; }}
+  .filter-btn {{
+    font-family: monospace; font-size: 10px; font-weight: 600;
+    padding: 3px 10px; border-radius: 4px; border: 1px solid #e2e5ec;
+    background: #fff; color: #6b7280; cursor: pointer; transition: all .15s;
+  }}
+  .filter-btn:hover {{ border-color: #9ca3af; color: #374151; }}
+  .filter-btn.active {{ background: #4f46e5; color: #fff; border-color: #4f46e5; }}
   #update-indicator {{
     position: fixed;
     bottom: 16px;
@@ -335,6 +347,20 @@ html = f"""<!DOCTYPE html>
       <div class="stat-value" style="color:#9b1c2e">{total - ativos}</div>
     </div>
   </div>
+  <div class="filters">
+    <div class="filter-group">
+      <span class="filter-label">Workflow</span>
+      <button class="filter-btn active" data-filter="wf" data-value="todos">Todos</button>
+      <button class="filter-btn" data-filter="wf" data-value="ativo">Ativo</button>
+      <button class="filter-btn" data-filter="wf" data-value="inativo">Inativo</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Node</span>
+      <button class="filter-btn active" data-filter="nd" data-value="todos">Todos</button>
+      <button class="filter-btn" data-filter="nd" data-value="ativo">Ativo</button>
+      <button class="filter-btn" data-filter="nd" data-value="desativado">Desativado</button>
+    </div>
+  </div>
   <table>
     <thead>
       <tr>
@@ -351,6 +377,28 @@ html = f"""<!DOCTYPE html>
    </table>
 
   <div id="update-indicator">⟳ verificando atualizações...</div>
+
+  <script>
+    const filterState = {{ wf: 'todos', nd: 'todos' }};
+
+    function applyFilters() {{
+      document.querySelectorAll('tbody tr').forEach(tr => {{
+        const wfOk = filterState.wf === 'todos' || tr.dataset.wf === filterState.wf;
+        const ndOk = filterState.nd === 'todos' || tr.dataset.nd === filterState.nd;
+        tr.style.display = wfOk && ndOk ? '' : 'none';
+      }});
+    }}
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {{
+      btn.addEventListener('click', () => {{
+        const group = btn.dataset.filter;
+        document.querySelectorAll(`.filter-btn[data-filter="${{group}}"]`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterState[group] = btn.dataset.value;
+        applyFilters();
+      }});
+    }});
+  </script>
 
   <script>
     const GITHUB_USER = '{GITHUB_USER}';
