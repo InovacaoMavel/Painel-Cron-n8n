@@ -184,8 +184,13 @@ for workflow in workflows:
                 dias_semana = {0:"domingo",1:"segunda",2:"terça",3:"quarta",4:"quinta",5:"sexta",6:"sábado"}
                 h = str(i.get("triggerAtHour", 0)).zfill(2)
                 m = str(i.get("triggerAtMinute", 0)).zfill(2)
-                dia = dias_semana.get(i.get("triggerAtDay", 1), str(i.get("triggerAtDay", "")))
-                horario_parts.append(f"Toda {dia} às {h}:{m}")
+                raw_day = i.get("triggerAtDay", 1)
+                if isinstance(raw_day, list):
+                    nomes = [dias_semana.get(d, str(d)) for d in raw_day]
+                    dia = ", ".join(nomes)
+                else:
+                    dia = dias_semana.get(raw_day, str(raw_day))
+                horario_parts.append(f"Toda(s) {dia} às {h}:{m}")
             elif i.get("field") == "months":
                 h = str(i.get("triggerAtHour", 0)).zfill(2)
                 m = str(i.get("triggerAtMinute", 0)).zfill(2)
