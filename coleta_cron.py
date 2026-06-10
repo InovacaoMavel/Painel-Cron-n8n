@@ -76,14 +76,17 @@ def traduzir_cron(expr):
 
     pad = lambda v: str(v).zfill(2)
 
+    # ── A cada N minutos ──────────────────────────────────────────────────────
     if minuto.startswith("*/") and hora == "*" and dom == "*" and mes == "*" and dow == "*":
         n = minuto.split("/")[1]
         return f"A cada {n} minuto(s)"
 
+    # ── A cada N horas ────────────────────────────────────────────────────────
     if hora.startswith("*/") and minuto == "0" and dom == "*" and mes == "*" and dow == "*":
         n = hora.split("/")[1]
         return f"A cada {n} hora(s)"
 
+    # ── Todo dia em horários específicos ──────────────────────────────────────
     if dom == "*" and mes == "*" and dow == "*" and "*" not in minuto and "*" not in hora:
         if "," in hora:
             horas = [f"{pad(h)}:{pad(minuto)}" for h in hora.split(",")]
@@ -93,19 +96,52 @@ def traduzir_cron(expr):
             return f"Todo dia às {', '.join(mins)}"
         return f"Todo dia às {pad(hora)}:{pad(minuto)}"
 
+    # ── Dia específico do mês ─────────────────────────────────────────────────
     if dom != "*" and mes == "*" and dow == "*" and "*" not in minuto and "*" not in hora:
         return f"Todo dia {dom} do mês às {pad(hora)}:{pad(minuto)}"
 
+    # ── Dias da semana específicos (CORRIGIDO) ────────────────────────────────
     if dow != "*" and dom == "*" and mes == "*" and "*" not in minuto and "*" not in hora:
-        dias = [dias_semana.get(d.strip(), d) for d in dow.replace("-", ",").split(",")]
-        if len(dias) == 1:
-            return f"Toda {dias[0]} às {pad(hora)}:{pad(minuto)}"
-        return f"Toda(s) {', '.join(dias)} às {pad(hora)}:{pad(minuto)}"
+        dow_original = dow
+        
+        # Expande intervalos como "1-6" para "1,2,3,4,5,6"
+        if "-" in dow and not "," in dow:
+            start, end = dow.split("-")
+            dow = ",".join(str(d) for d in range(int(start), int(end)+1))
+        
+        dias = []
+        for d in dow.split(","):
+            d = d.strip()
+            # Traduz números ou nomes de dias
+            if d in dias_semana:
+                dias.append(dias_semana[d])
+            elif d.upper() in dias_semana:
+                dias.append(dias_semana[d.upper()])
+            else:
+                dias.append(d)
+        
+        # Remove duplicatas mantendo ordem
+        dias_unicos = []
+        for d in dias:
+            if d not in dias_unicos:
+                dias_unicos.append(d)
+        
+        if len(dias_unicos) == 1:
+            return f"Toda {dias_unicos[0]} às {pad(hora)}:{pad(minuto)}"
+        return f"Toda(s) {', '.join(dias_unicos)} às {pad(hora)}:{pad(minuto)}"
 
+    # ── Dia específico em mês específico ──────────────────────────────────────
     if mes != "*" and dom != "*" and dow == "*" and "*" not in minuto and "*" not in hora:
-        nome_mes = meses_nome.get(mes, mes)
+        # Pode ser número ou nome do mês
+        if mes in meses_nome:
+            nome_mes = meses_nome[mes]
+        elif mes.isdigit() and mes in meses_nome:
+            nome_mes = meses_nome[mes]
+        else:
+            nome_mes = mes
         return f"Todo dia {dom} de {nome_mes} às {pad(hora)}:{pad(minuto)}"
 
+    # ── Caso não identificado, retorna a expressão original ───────────────────
     return expr
 
 
@@ -142,8 +178,12 @@ for workflow in workflows:
             else:
                 horario_parts.append("—")
 
+        # Usa a URL base do .env para o link, ou fallback
+        base_url = os.getenv("N8N_URL", url).rstrip("/")
+        workflow_url = f"{base_url}/workflow/{id_}"
+
         resultado.append({
-            "id":            "https://workflow.mavellocadora.com.br/workflow/" + id_,
+            "id":            workflow_url,
             "nome":          nome,
             "ativo":         True if ativo else False,
             "nodeSchedule":  nome_node,
@@ -262,7 +302,7 @@ html = f"""<!DOCTYPE html>
       </tr>
     </thead>
     <tbody>{tr_rows}</tbody>
-  </table>
+   </table>
 
   <div id="update-indicator">⟳ verificando atualizações...</div>
 
