@@ -200,6 +200,8 @@ for workflow in workflows:
                 h = str(i.get("triggerAtHour", 0)).zfill(2)
                 m = str(i.get("triggerAtMinute", 0)).zfill(2)
                 horario_parts.append(f"Todo dia às {h}:{m}")
+            elif not i:
+                horario_parts.append("A cada 1 minuto(s) (padrão)")
             else:
                 horario_parts.append("—")
 
